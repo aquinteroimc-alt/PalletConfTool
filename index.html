@@ -94,7 +94,7 @@
         <span class="viz-title">Isometric pallet view</span>
         <button class="pbtn" onclick="doPrint()"><i class="ti ti-printer" aria-hidden="true" style="font-size:15px"></i> Print sheet</button>
       </div>
-      <canvas id="cv" width="480" height="540"></canvas>
+      <canvas id="cv" width="560" height="620"></canvas>
       <div class="legend" id="legend"></div>
     </div>
   </div>
@@ -106,7 +106,7 @@
     <div style="text-align:right;font-size:12px;color:#555" id="pa-date"></div>
   </div>
   <div class="pa-body">
-    <div style="text-align:center"><canvas id="cv-print" width="520" height="580"></canvas></div>
+    <div style="text-align:center"><canvas id="cv-print" width="580" height="640"></canvas></div>
     <div>
       <div class="pa-stat-grid" id="pa-stats"></div>
       <div class="pa-layers"><h3>Layer plan</h3><div id="pa-layers"></div></div>
@@ -119,17 +119,28 @@
 <script>
 const $=id=>document.getElementById(id);
 
+// roundRect polyfill for older browsers
+if(!CanvasRenderingContext2D.prototype.roundRect){
+  CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h,r){
+    if(typeof r==='number')r=[r,r,r,r];
+    this.moveTo(x+r[0],y);this.lineTo(x+w-r[1],y);this.quadraticCurveTo(x+w,y,x+w,y+r[1]);
+    this.lineTo(x+w,y+h-r[2]);this.quadraticCurveTo(x+w,y+h,x+w-r[2],y+h);
+    this.lineTo(x+r[3],y+h);this.quadraticCurveTo(x,y+h,x,y+h-r[3]);
+    this.lineTo(x,y+r[0]);this.quadraticCurveTo(x,y,x+r[0],y);this.closePath();
+  };
+}
+
 const LAYER_COLORS=[
-  {top:'#FFE033',side:'#C9A800',front:'#E6C400'},
-  {top:'#FF6B6B',side:'#B33030',front:'#D94545'},
-  {top:'#4FC3F7',side:'#0277BD',front:'#29ABE2'},
-  {top:'#81C784',side:'#2E7D32',front:'#4CAF50'},
-  {top:'#FFB74D',side:'#BF360C',front:'#F57C00'},
-  {top:'#CE93D8',side:'#6A1B9A',front:'#AB47BC'},
-  {top:'#80DEEA',side:'#00695C',front:'#26C6DA'},
-  {top:'#F48FB1',side:'#880E4F',front:'#EC407A'},
-  {top:'#BCAAA4',side:'#4E342E',front:'#8D6E63'},
-  {top:'#DCE775',side:'#558B2F',front:'#AFB42B'},
+  {top:'#FFDD40',side:'#B8930A',front:'#DAB512'},
+  {top:'#FF6B6B',side:'#A82020',front:'#CC3E3E'},
+  {top:'#50D4FF',side:'#0A6FA0',front:'#1E9AD4'},
+  {top:'#6FD97A',side:'#28752E',front:'#3FA848'},
+  {top:'#FFB04D',side:'#A85A0A',front:'#D47718'},
+  {top:'#D49BE8',side:'#6B1A8C',front:'#A04CC0'},
+  {top:'#5EE8D0',side:'#0A7A68',front:'#22B8A0'},
+  {top:'#FF82A8',side:'#8C1A42',front:'#CC4070'},
+  {top:'#C4A898',side:'#5A3828',front:'#8A6050'},
+  {top:'#E2F050',side:'#5A8020',front:'#A0C030'},
 ];
 
 const EMPTY={top:'#e8e4f8',side:'#b0a8e0',front:'#ccc8f0'};
@@ -218,24 +229,39 @@ function drawPallet(canvas,layers,maxCpl,cols,rows,forPrint){
   const W=canvas.width,H=canvas.height;
   ctx.clearRect(0,0,W,H);
 
-  const S=forPrint?1.18:1.1;
-  const CW=Math.floor((forPrint?48:44)/Math.max(cols,4)*S);
-  const CD=Math.floor((forPrint?40:36)/Math.max(rows,3)*S);
-  const CH=forPrint?24:21;
-  const PAL_H=forPrint?10:8;
-  const SLAT_H=forPrint?10:8;
+  // Use device pixel ratio for crisp rendering
+  const dpr=forPrint?1:window.devicePixelRatio||1;
+  if(!forPrint&&!canvas._scaled){
+    const cw=canvas.width,ch=canvas.height;
+    canvas.width=cw*dpr;canvas.height=ch*dpr;
+    canvas.style.width=cw+'px';canvas.style.height=ch+'px';
+    ctx.scale(dpr,dpr);
+    canvas._scaled=true;
+  }
+  const logW=forPrint?canvas.width:canvas.width/dpr;
+  const logH=forPrint?canvas.height:canvas.height/dpr;
+  ctx.clearRect(0,0,logW,logH);
 
-  const palW=cols*CW+6,palD=rows*CD+6;
+  // Improved scaling - larger boxes with better proportions
+  const S=forPrint?1.35:1.28;
+  const CW=Math.floor((forPrint?52:50)/Math.max(cols,4)*S);
+  const CD=Math.floor((forPrint?44:42)/Math.max(rows,3)*S);
+  const CH=forPrint?26:24;
+  const PAL_H=forPrint?12:10;
+  const SLAT_H=forPrint?12:10;
 
-  const isoX=0.72,isoY=0.38;
+  const palW=cols*CW+8,palD=rows*CD+8;
+
+  // True isometric angles for a cleaner look
+  const isoX=0.82,isoY=0.42;
   function iso(x,y,z){
     return{x:x*isoX-y*isoX,y:-z+x*isoY+y*isoY};
   }
 
   const maxDisp=Math.min(layers.length,12);
-  const totalH=maxDisp*CH+PAL_H+SLAT_H+16;
+  const totalH=maxDisp*CH+PAL_H+SLAT_H+20;
   const span_y=(palW+palD)*isoY+totalH;
-  const ox=W/2,oy=(H-span_y)/2+span_y-14;
+  const ox=logW/2,oy=(logH-span_y)/2+span_y-18;
 
   function pt(x,y,z){const p=iso(x,y,z);return{x:ox+p.x,y:oy+p.y};}
 
@@ -245,76 +271,113 @@ function drawPallet(canvas,layers,maxCpl,cols,rows,forPrint){
     for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i].x,pts[i].y);
     ctx.closePath();
     ctx.fillStyle=color;ctx.fill();
-    ctx.strokeStyle=strokeColor||'rgba(0,0,0,0.25)';
-    ctx.lineWidth=lw||1.0;
-    ctx.stroke();
+    if(strokeColor){
+      ctx.strokeStyle=strokeColor;
+      ctx.lineWidth=lw||0.8;
+      ctx.stroke();
+    }
+  }
+
+  // Gradient helper for richer face coloring
+  function faceGrad(pts,color1,color2,strokeColor,lw){
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x,pts[0].y);
+    for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i].x,pts[i].y);
+    ctx.closePath();
+    const minX=Math.min(...pts.map(p=>p.x)),maxX=Math.max(...pts.map(p=>p.x));
+    const minY=Math.min(...pts.map(p=>p.y)),maxY=Math.max(...pts.map(p=>p.y));
+    const grad=ctx.createLinearGradient(minX,minY,maxX,maxY);
+    grad.addColorStop(0,color1);grad.addColorStop(1,color2);
+    ctx.fillStyle=grad;ctx.fill();
+    if(strokeColor){ctx.strokeStyle=strokeColor;ctx.lineWidth=lw||0.8;ctx.stroke();}
+  }
+
+  function darken(hex,amt){
+    let c=parseInt(hex.slice(1),16);
+    let r=Math.max(0,(c>>16)-amt),g=Math.max(0,((c>>8)&0xFF)-amt),b=Math.max(0,(c&0xFF)-amt);
+    return'#'+(r<<16|g<<8|b).toString(16).padStart(6,'0');
+  }
+  function lighten(hex,amt){
+    let c=parseInt(hex.slice(1),16);
+    let r=Math.min(255,(c>>16)+amt),g=Math.min(255,((c>>8)&0xFF)+amt),b=Math.min(255,(c&0xFF)+amt);
+    return'#'+(r<<16|g<<8|b).toString(16).padStart(6,'0');
   }
 
   function drawBox(x,y,z,w,d,h,tc,sc,fc,isCase){
-    // Front face (facing viewer - bottom-right)
-    face([pt(x+w,y,z+h),pt(x+w,y+d,z+h),pt(x+w,y+d,z),pt(x+w,y,z)],fc,'rgba(0,0,0,0.3)',1.0);
-    // Side face (facing viewer - bottom-left)
-    face([pt(x,y+d,z+h),pt(x+w,y+d,z+h),pt(x+w,y+d,z),pt(x,y+d,z)],sc,'rgba(0,0,0,0.35)',1.0);
-    // Top face
-    face([pt(x,y,z+h),pt(x+w,y,z+h),pt(x+w,y+d,z+h),pt(x,y+d,z+h)],tc,'rgba(0,0,0,0.2)',1.0);
+    const frontPts=[pt(x+w,y,z+h),pt(x+w,y+d,z+h),pt(x+w,y+d,z),pt(x+w,y,z)];
+    const sidePts=[pt(x,y+d,z+h),pt(x+w,y+d,z+h),pt(x+w,y+d,z),pt(x,y+d,z)];
+    const topPts=[pt(x,y,z+h),pt(x+w,y,z+h),pt(x+w,y+d,z+h),pt(x,y+d,z+h)];
+
+    // Front face with gradient
+    faceGrad(frontPts,fc,darken(fc,20),'rgba(0,0,0,0.18)',0.6);
+    // Side face with gradient
+    faceGrad(sidePts,sc,darken(sc,15),'rgba(0,0,0,0.22)',0.6);
+    // Top face with subtle gradient
+    faceGrad(topPts,lighten(tc,10),tc,'rgba(0,0,0,0.12)',0.6);
 
     if(isCase){
-      // Draw box flap lines on top
-      const cx=x+w/2, cy=y+d/2;
-      const flapLen=Math.min(w,d)*0.3;
-      ctx.strokeStyle='rgba(0,0,0,0.12)';
-      ctx.lineWidth=0.7;
-      // Center cross flap mark
-      const p1=pt(cx-flapLen*0.5,cy,z+h);
-      const p2=pt(cx+flapLen*0.5,cy,z+h);
-      ctx.beginPath();ctx.moveTo(p1.x,p1.y);ctx.lineTo(p2.x,p2.y);ctx.stroke();
-      const p3=pt(cx,cy-flapLen*0.5,z+h);
-      const p4=pt(cx,cy+flapLen*0.5,z+h);
-      ctx.beginPath();ctx.moveTo(p3.x,p3.y);ctx.lineTo(p4.x,p4.y);ctx.stroke();
-
-      // Subtle edge highlights on top
-      ctx.strokeStyle='rgba(255,255,255,0.2)';
+      // Refined flap lines on top
+      const cx=x+w/2,cy=y+d/2;
+      const flapW=w*0.35,flapD=d*0.35;
+      ctx.strokeStyle='rgba(0,0,0,0.08)';
       ctx.lineWidth=0.6;
-      const ht1=pt(x+1,y+1,z+h),ht2=pt(x+w-1,y+1,z+h);
+      // Diamond flap mark
+      const fp1=pt(cx,cy-flapD,z+h),fp2=pt(cx+flapW,cy,z+h);
+      const fp3=pt(cx,cy+flapD,z+h),fp4=pt(cx-flapW,cy,z+h);
+      ctx.beginPath();ctx.moveTo(fp1.x,fp1.y);ctx.lineTo(fp2.x,fp2.y);
+      ctx.lineTo(fp3.x,fp3.y);ctx.lineTo(fp4.x,fp4.y);ctx.closePath();ctx.stroke();
+
+      // Top edge highlight
+      ctx.strokeStyle='rgba(255,255,255,0.25)';
+      ctx.lineWidth=0.8;
+      const ht1=pt(x+0.5,y+0.5,z+h),ht2=pt(x+w-0.5,y+0.5,z+h);
       ctx.beginPath();ctx.moveTo(ht1.x,ht1.y);ctx.lineTo(ht2.x,ht2.y);ctx.stroke();
     }
   }
 
+  // Draw ground shadow
+  ctx.save();
+  const shPts=[pt(-8,palD+8,-SLAT_H-2),pt(palW+8,palD+8,-SLAT_H-2),pt(palW+12,palD+16,-SLAT_H-2),pt(-4,palD+16,-SLAT_H-2)];
+  ctx.beginPath();ctx.moveTo(shPts[0].x,shPts[0].y);
+  for(let i=1;i<shPts.length;i++)ctx.lineTo(shPts[i].x,shPts[i].y);
+  ctx.closePath();
+  ctx.fillStyle='rgba(0,0,0,0.06)';ctx.fill();
+  ctx.restore();
+
   // Draw pallet base with individual planks
   const px=0,py=0,pz=0;
-  const numPlanks=5;
+  const numPlanks=6;
   const plankW=palW/numPlanks;
   for(let i=0;i<numPlanks;i++){
-    const gap=i>0?1:0;
-    drawBox(px+i*plankW+gap,py,pz,plankW-1,palD,PAL_H,PALLET_TOP,PALLET_SIDE,PALLET_FRONT,false);
+    const gap=i>0?0.8:0;
+    drawBox(px+i*plankW+gap,py,pz,plankW-0.8,palD,PAL_H,PALLET_TOP,PALLET_SIDE,PALLET_FRONT,false);
   }
 
-  // Draw pallet slats (feet)
-  const slatW=Math.floor(palW*0.12);
-  const slatPositions=[0.05,0.44,0.83];
+  // Draw pallet slats (feet) - 3 blocks
+  const slatW=Math.floor(palW*0.14);
+  const slatPositions=[0.04,0.43,0.82];
   slatPositions.forEach(g=>{
     const sx=px+Math.floor(palW*g);
     drawBox(sx,py,pz-SLAT_H,slatW,palD,SLAT_H,SLAT_TOP,SLAT_SIDE,SLAT_FRONT,false);
   });
   // Cross slats under pallet
-  const crossD=Math.floor(palD*0.12);
-  const crossPositions=[0.05,0.44,0.83];
+  const crossD=Math.floor(palD*0.13);
+  const crossPositions=[0.04,0.43,0.82];
   crossPositions.forEach(g=>{
     const sy=py+Math.floor(palD*g);
-    drawBox(px,sy,pz-SLAT_H,palW,crossD,SLAT_H*0.6,SLAT_TOP,SLAT_SIDE,SLAT_FRONT,false);
+    drawBox(px,sy,pz-SLAT_H,palW,crossD,SLAT_H*0.55,SLAT_TOP,SLAT_SIDE,SLAT_FRONT,false);
   });
 
   // Draw case layers back-to-front for proper overlap
-  const baseZ=pz+PAL_H;
+  const baseZ=pz+PAL_H+1;
   for(let li=0;li<maxDisp;li++){
     const lay=layers[li];
     const z=baseZ+li*CH;
     const c=LAYER_COLORS[li%LAYER_COLORS.length];
     let drawn=0;
-    // Draw from back row to front row, back col to front col
     for(let r=0;r<rows;r++){
       for(let col=0;col<cols;col++){
-        const bx=px+3+col*CW,by=py+3+r*CD;
+        const bx=px+4+col*CW,by=py+4+r*CD;
         const filled=drawn<lay.count;
         const tc=filled?c.top:EMPTY.top;
         const sc=filled?c.side:EMPTY.side;
@@ -323,20 +386,27 @@ function drawPallet(canvas,layers,maxCpl,cols,rows,forPrint){
         if(filled)drawn++;
       }
     }
-    // Layer label
-    const lp=pt(px-6,py+palD/2,z+CH*.5);
-    ctx.fillStyle='rgba(60,50,40,0.8)';
+    // Layer label with background pill
+    const lp=pt(px-10,py+palD/2,z+CH*.5);
+    const lblText='L'+(li+1)+' · '+lay.count;
     ctx.font=`600 ${forPrint?11:10}px -apple-system,system-ui,sans-serif`;
+    const tw=ctx.measureText(lblText).width;
+    ctx.fillStyle='rgba(255,255,255,0.85)';
+    ctx.beginPath();
+    const rx=lp.x-tw-10,ry=lp.y-6;
+    ctx.roundRect(rx,ry,tw+8,16,3);
+    ctx.fill();
+    ctx.fillStyle=c.front;
     ctx.textAlign='right';
-    ctx.fillText('L'+(li+1)+' · '+lay.count,lp.x-3,lp.y+3);
+    ctx.fillText(lblText,lp.x-4,lp.y+4);
   }
 
   // Pallet dimensions label
-  const dp=pt(palW/2,palD+12,pz);
-  ctx.fillStyle='rgba(80,70,60,0.7)';
-  ctx.font=`${forPrint?12:11}px -apple-system,system-ui,sans-serif`;
+  const dp=pt(palW/2,palD+16,pz);
+  ctx.fillStyle='rgba(80,70,60,0.6)';
+  ctx.font=`500 ${forPrint?12:11}px -apple-system,system-ui,sans-serif`;
   ctx.textAlign='center';
-  ctx.fillText('40" × 48"  ·  '+cols+' × '+rows,dp.x,dp.y+14);
+  ctx.fillText('40" × 48"  ·  '+cols+' × '+rows,dp.x,dp.y+16);
 }
 
 function doPrint(){
