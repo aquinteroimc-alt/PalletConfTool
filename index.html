@@ -94,7 +94,7 @@
         <span class="viz-title">Isometric pallet view</span>
         <button class="pbtn" onclick="doPrint()"><i class="ti ti-printer" aria-hidden="true" style="font-size:15px"></i> Print sheet</button>
       </div>
-      <canvas id="cv" width="380" height="460"></canvas>
+      <canvas id="cv" width="480" height="540"></canvas>
       <div class="legend" id="legend"></div>
     </div>
   </div>
@@ -106,7 +106,7 @@
     <div style="text-align:right;font-size:12px;color:#555" id="pa-date"></div>
   </div>
   <div class="pa-body">
-    <div style="text-align:center"><canvas id="cv-print" width="460" height="520"></canvas></div>
+    <div style="text-align:center"><canvas id="cv-print" width="520" height="580"></canvas></div>
     <div>
       <div class="pa-stat-grid" id="pa-stats"></div>
       <div class="pa-layers"><h3>Layer plan</h3><div id="pa-layers"></div></div>
@@ -218,84 +218,125 @@ function drawPallet(canvas,layers,maxCpl,cols,rows,forPrint){
   const W=canvas.width,H=canvas.height;
   ctx.clearRect(0,0,W,H);
 
-  const S=forPrint?1.18:1.0;
-  const CW=Math.floor((forPrint?46:40)/Math.max(cols,4)*S);
-  const CD=Math.floor((forPrint?38:33)/Math.max(rows,3)*S);
-  const CH=forPrint?22:19;
-  const PAL_H=forPrint?14:12;
-  const SLAT_H=forPrint?8:7;
+  const S=forPrint?1.18:1.1;
+  const CW=Math.floor((forPrint?48:44)/Math.max(cols,4)*S);
+  const CD=Math.floor((forPrint?40:36)/Math.max(rows,3)*S);
+  const CH=forPrint?24:21;
+  const PAL_H=forPrint?10:8;
+  const SLAT_H=forPrint?10:8;
 
-  const palW=cols*CW+4,palD=rows*CD+4;
+  const palW=cols*CW+6,palD=rows*CD+6;
 
-  const isoX=0.70,isoY=0.36;
+  const isoX=0.72,isoY=0.38;
   function iso(x,y,z){
-    return{
-      x:x*isoX-y*isoX,
-      y:-z+x*isoY+y*isoY
-    };
+    return{x:x*isoX-y*isoX,y:-z+x*isoY+y*isoY};
   }
 
   const maxDisp=Math.min(layers.length,12);
-  const totalH=maxDisp*CH+PAL_H+SLAT_H+10;
-  const span_x=(palW+palD)*isoX;
+  const totalH=maxDisp*CH+PAL_H+SLAT_H+16;
   const span_y=(palW+palD)*isoY+totalH;
-  const ox=W/2,oy=(H-span_y)/2+span_y-10;
+  const ox=W/2,oy=(H-span_y)/2+span_y-14;
 
   function pt(x,y,z){const p=iso(x,y,z);return{x:ox+p.x,y:oy+p.y};}
 
-  function face(pts,color,stroke){
+  function face(pts,color,strokeColor,lw){
     ctx.beginPath();
     ctx.moveTo(pts[0].x,pts[0].y);
     for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i].x,pts[i].y);
     ctx.closePath();
     ctx.fillStyle=color;ctx.fill();
-    ctx.strokeStyle=stroke||'rgba(0,0,0,0.18)';ctx.lineWidth=0.8;ctx.stroke();
+    ctx.strokeStyle=strokeColor||'rgba(0,0,0,0.25)';
+    ctx.lineWidth=lw||1.0;
+    ctx.stroke();
   }
 
-  function box(x,y,z,w,d,h,tc,sc,fc){
-    face([pt(x,y,z+h),pt(x+w,y,z+h),pt(x+w,y+d,z+h),pt(x,y+d,z+h)],tc,'rgba(0,0,0,0.15)');
-    face([pt(x,y+d,z+h),pt(x+w,y+d,z+h),pt(x+w,y+d,z),pt(x,y+d,z)],sc,'rgba(0,0,0,0.2)');
-    face([pt(x+w,y,z+h),pt(x+w,y+d,z+h),pt(x+w,y+d,z),pt(x+w,y,z)],fc,'rgba(0,0,0,0.2)');
+  function drawBox(x,y,z,w,d,h,tc,sc,fc,isCase){
+    // Front face (facing viewer - bottom-right)
+    face([pt(x+w,y,z+h),pt(x+w,y+d,z+h),pt(x+w,y+d,z),pt(x+w,y,z)],fc,'rgba(0,0,0,0.3)',1.0);
+    // Side face (facing viewer - bottom-left)
+    face([pt(x,y+d,z+h),pt(x+w,y+d,z+h),pt(x+w,y+d,z),pt(x,y+d,z)],sc,'rgba(0,0,0,0.35)',1.0);
+    // Top face
+    face([pt(x,y,z+h),pt(x+w,y,z+h),pt(x+w,y+d,z+h),pt(x,y+d,z+h)],tc,'rgba(0,0,0,0.2)',1.0);
+
+    if(isCase){
+      // Draw box flap lines on top
+      const cx=x+w/2, cy=y+d/2;
+      const flapLen=Math.min(w,d)*0.3;
+      ctx.strokeStyle='rgba(0,0,0,0.12)';
+      ctx.lineWidth=0.7;
+      // Center cross flap mark
+      const p1=pt(cx-flapLen*0.5,cy,z+h);
+      const p2=pt(cx+flapLen*0.5,cy,z+h);
+      ctx.beginPath();ctx.moveTo(p1.x,p1.y);ctx.lineTo(p2.x,p2.y);ctx.stroke();
+      const p3=pt(cx,cy-flapLen*0.5,z+h);
+      const p4=pt(cx,cy+flapLen*0.5,z+h);
+      ctx.beginPath();ctx.moveTo(p3.x,p3.y);ctx.lineTo(p4.x,p4.y);ctx.stroke();
+
+      // Subtle edge highlights on top
+      ctx.strokeStyle='rgba(255,255,255,0.2)';
+      ctx.lineWidth=0.6;
+      const ht1=pt(x+1,y+1,z+h),ht2=pt(x+w-1,y+1,z+h);
+      ctx.beginPath();ctx.moveTo(ht1.x,ht1.y);ctx.lineTo(ht2.x,ht2.y);ctx.stroke();
+    }
   }
 
+  // Draw pallet base with individual planks
   const px=0,py=0,pz=0;
-  box(px,py,pz,palW,palD,PAL_H,PALLET_TOP,PALLET_SIDE,PALLET_FRONT);
-  const slatW=Math.floor(palW*0.14);
-  const gaps=[0.1,0.42,0.74];
-  gaps.forEach(g=>{
+  const numPlanks=5;
+  const plankW=palW/numPlanks;
+  for(let i=0;i<numPlanks;i++){
+    const gap=i>0?1:0;
+    drawBox(px+i*plankW+gap,py,pz,plankW-1,palD,PAL_H,PALLET_TOP,PALLET_SIDE,PALLET_FRONT,false);
+  }
+
+  // Draw pallet slats (feet)
+  const slatW=Math.floor(palW*0.12);
+  const slatPositions=[0.05,0.44,0.83];
+  slatPositions.forEach(g=>{
     const sx=px+Math.floor(palW*g);
-    box(sx,py,pz-SLAT_H,slatW,palD,SLAT_H,SLAT_TOP,SLAT_SIDE,SLAT_FRONT);
+    drawBox(sx,py,pz-SLAT_H,slatW,palD,SLAT_H,SLAT_TOP,SLAT_SIDE,SLAT_FRONT,false);
+  });
+  // Cross slats under pallet
+  const crossD=Math.floor(palD*0.12);
+  const crossPositions=[0.05,0.44,0.83];
+  crossPositions.forEach(g=>{
+    const sy=py+Math.floor(palD*g);
+    drawBox(px,sy,pz-SLAT_H,palW,crossD,SLAT_H*0.6,SLAT_TOP,SLAT_SIDE,SLAT_FRONT,false);
   });
 
+  // Draw case layers back-to-front for proper overlap
   const baseZ=pz+PAL_H;
   for(let li=0;li<maxDisp;li++){
     const lay=layers[li];
     const z=baseZ+li*CH;
     const c=LAYER_COLORS[li%LAYER_COLORS.length];
     let drawn=0;
+    // Draw from back row to front row, back col to front col
     for(let r=0;r<rows;r++){
       for(let col=0;col<cols;col++){
-        const bx=px+2+col*CW,by=py+2+r*CD;
+        const bx=px+3+col*CW,by=py+3+r*CD;
         const filled=drawn<lay.count;
         const tc=filled?c.top:EMPTY.top;
         const sc=filled?c.side:EMPTY.side;
         const fc=filled?c.front:EMPTY.front;
-        box(bx,by,z,CW-1,CD-1,CH-1,tc,sc,fc);
+        drawBox(bx,by,z,CW-2,CD-2,CH-2,tc,sc,fc,filled);
         if(filled)drawn++;
       }
     }
-    const lp=pt(px-4,py+palD/2,z+CH*.55);
-    ctx.fillStyle='rgba(80,70,60,0.75)';
-    ctx.font=`500 ${forPrint?11:10}px sans-serif`;
+    // Layer label
+    const lp=pt(px-6,py+palD/2,z+CH*.5);
+    ctx.fillStyle='rgba(60,50,40,0.8)';
+    ctx.font=`600 ${forPrint?11:10}px -apple-system,system-ui,sans-serif`;
     ctx.textAlign='right';
-    ctx.fillText('L'+(li+1)+' · '+lay.count,lp.x-2,lp.y+3);
+    ctx.fillText('L'+(li+1)+' · '+lay.count,lp.x-3,lp.y+3);
   }
 
-  const dp=pt(palW/2,palD+10,pz);
-  ctx.fillStyle='rgba(100,90,80,0.7)';
-  ctx.font=`${forPrint?12:11}px sans-serif`;
+  // Pallet dimensions label
+  const dp=pt(palW/2,palD+12,pz);
+  ctx.fillStyle='rgba(80,70,60,0.7)';
+  ctx.font=`${forPrint?12:11}px -apple-system,system-ui,sans-serif`;
   ctx.textAlign='center';
-  ctx.fillText('40" × 48"  ·  '+cols+' × '+rows,dp.x,dp.y+12);
+  ctx.fillText('40" × 48"  ·  '+cols+' × '+rows,dp.x,dp.y+14);
 }
 
 function doPrint(){
