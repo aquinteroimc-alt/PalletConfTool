@@ -1,0 +1,337 @@
+
+<h2 class="sr-only">Smart pallet stacker with isometric 3D view, one color per layer, print sheet support</h2>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+.root{display:grid;grid-template-columns:260px 1fr;gap:16px;padding:1rem 0}
+.panel{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1.25rem}
+.sec{font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--color-text-secondary);margin-bottom:9px}
+.field{margin-bottom:11px}
+.field label{display:flex;justify-content:space-between;font-size:13px;color:var(--color-text-secondary);margin-bottom:4px}
+.field label b{font-weight:500;color:var(--color-text-primary)}
+.field input[type=number]{width:100%;padding:7px 10px;font-size:15px;font-weight:500;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:var(--color-background-secondary);color:var(--color-text-primary);text-align:center}
+.field input[type=text],.field textarea{width:100%;padding:7px 10px;font-size:13px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:var(--color-background-secondary);color:var(--color-text-primary)}
+.field textarea{resize:vertical;min-height:52px;font-family:var(--font-sans)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.divider{border:none;border-top:0.5px solid var(--color-border-tertiary);margin:11px 0}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:10px}
+.stat{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:8px 10px}
+.stat-lbl{font-size:11px;color:var(--color-text-secondary)}
+.stat-val{font-size:18px;font-weight:500;color:var(--color-text-primary);line-height:1.2}
+.stat-sub{font-size:11px;color:var(--color-text-secondary)}
+.lplan{margin-top:2px}
+.lrow{display:flex;align-items:center;gap:7px;margin-bottom:5px}
+.lbadge{width:20px;height:20px;border-radius:4px;font-size:10px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#fff}
+.lbar-bg{flex:1;height:6px;background:var(--color-border-tertiary);border-radius:3px;overflow:hidden}
+.lbar{height:100%;border-radius:3px}
+.lcnt{font-size:12px;font-weight:500;color:var(--color-text-primary);min-width:24px;text-align:right}
+.note{font-size:12px;color:var(--color-text-secondary);margin-top:7px;padding:7px 10px;background:var(--color-background-secondary);border-radius:var(--border-radius-md);line-height:1.5}
+.warn{font-size:12px;color:var(--color-text-warning);background:var(--color-background-warning);border:0.5px solid var(--color-border-warning);border-radius:var(--border-radius-md);padding:7px 10px;margin-top:7px;display:none}
+.viz-col{display:flex;flex-direction:column;gap:12px}
+.viz-card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1rem;display:flex;flex-direction:column;align-items:center}
+.viz-top{display:flex;justify-content:space-between;align-items:center;width:100%;margin-bottom:8px}
+.viz-title{font-size:13px;font-weight:500;color:var(--color-text-primary)}
+.pbtn{display:flex;align-items:center;gap:6px;padding:5px 13px;font-size:13px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:transparent;color:var(--color-text-primary);cursor:pointer}
+.pbtn:hover{background:var(--color-background-secondary)}
+.legend{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;justify-content:center}
+.leg{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--color-text-secondary)}
+.leg-dot{width:12px;height:12px;border-radius:3px}
+@media print{.root{display:none!important}#print-area{display:block!important}}
+#print-area{display:none}
+.pa-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;padding-bottom:12px;border-bottom:2px solid #111}
+.pa-title{font-size:22px;font-weight:700;color:#111}
+.pa-meta{font-size:13px;color:#555;margin-top:3px}
+.pa-body{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.pa-stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:14px}
+.pa-stat{background:#f4f4f4;border-radius:5px;padding:8px 10px}
+.pa-stat-lbl{font-size:11px;color:#666}
+.pa-stat-val{font-size:17px;font-weight:700;color:#111}
+.pa-layers{margin-bottom:14px}
+.pa-layers h3{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#333;margin-bottom:8px}
+.pa-layer-row{display:flex;align-items:center;gap:7px;font-size:13px;color:#333;margin-bottom:4px}
+.pa-notes-wrap{display:none}
+.pa-notes-wrap h3{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#333;margin-bottom:6px}
+.pa-notes{background:#f9f9f9;border-radius:5px;padding:9px 11px;font-size:13px;color:#333;line-height:1.6;white-space:pre-wrap}
+.pa-footer{margin-top:14px;padding-top:8px;border-top:0.5px solid #ccc;font-size:11px;color:#888;display:flex;justify-content:space-between}
+</style>
+
+<div class="root">
+  <div class="panel">
+    <p class="sec">Product info</p>
+    <div class="field"><label>Product name</label><input type="text" id="pname" placeholder="e.g. SKU-123 / Product A"></div>
+    <div class="field"><label>Notes / instructions</label><textarea id="pnotes" placeholder="Handle with care. Keep dry. Top load only."></textarea></div>
+
+    <hr class="divider">
+    <p class="sec">Cases to palletize</p>
+    <div class="field"><label>Total cases <b id="v-total">30</b></label><input type="number" id="total" min="1" max="560" value="30" step="1"></div>
+
+    <hr class="divider">
+    <p class="sec">Pallet settings</p>
+    <div class="field"><label>Cases per layer <b id="v-cpl">28</b></label><input type="number" id="cpl" min="1" max="60" value="28" step="1"></div>
+    <div class="row2">
+      <div class="field"><label>Columns <b id="v-cols">7</b></label><input type="number" id="cols" min="1" max="12" value="7" step="1"></div>
+      <div class="field"><label>Rows <b id="v-rows">4</b></label><input type="number" id="rows" min="1" max="12" value="4" step="1"></div>
+    </div>
+    <div class="field"><label>Max layers <b id="v-maxl">10</b></label><input type="number" id="maxl" min="1" max="20" value="10" step="1"></div>
+
+    <hr class="divider">
+    <div class="stats">
+      <div class="stat"><div class="stat-lbl">Layers</div><div class="stat-val" id="s-layers">—</div></div>
+      <div class="stat"><div class="stat-lbl">Cases / layer</div><div class="stat-val" id="s-cpl">—</div><div class="stat-sub" id="s-cpl2"></div></div>
+      <div class="stat"><div class="stat-lbl">Top coverage</div><div class="stat-val" id="s-fill">—</div><div class="stat-sub">%</div></div>
+      <div class="stat"><div class="stat-lbl">Stability</div><div class="stat-val" id="s-stab">—</div></div>
+    </div>
+    <div class="warn" id="warn"></div>
+    <div class="lplan">
+      <p class="sec" style="margin-top:4px">Layer plan</p>
+      <div id="layer-plan"></div>
+      <p class="note" id="note"></p>
+    </div>
+  </div>
+
+  <div class="viz-col">
+    <div class="viz-card">
+      <div class="viz-top">
+        <span class="viz-title">Isometric pallet view</span>
+        <button class="pbtn" onclick="doPrint()"><i class="ti ti-printer" aria-hidden="true" style="font-size:15px"></i> Print sheet</button>
+      </div>
+      <canvas id="cv" width="380" height="460"></canvas>
+      <div class="legend" id="legend"></div>
+    </div>
+  </div>
+</div>
+
+<div id="print-area">
+  <div class="pa-header">
+    <div><div class="pa-title" id="pa-title">Pallet Configuration</div><div class="pa-meta" id="pa-meta"></div></div>
+    <div style="text-align:right;font-size:12px;color:#555" id="pa-date"></div>
+  </div>
+  <div class="pa-body">
+    <div style="text-align:center"><canvas id="cv-print" width="460" height="520"></canvas></div>
+    <div>
+      <div class="pa-stat-grid" id="pa-stats"></div>
+      <div class="pa-layers"><h3>Layer plan</h3><div id="pa-layers"></div></div>
+      <div class="pa-notes-wrap" id="pa-notes-wrap"><h3>Notes</h3><div class="pa-notes" id="pa-notes"></div></div>
+    </div>
+  </div>
+  <div class="pa-footer"><span>Pallet: 40" × 48" standard</span><span id="pa-footer-r"></span></div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+
+const LAYER_COLORS=[
+  {top:'#FFE033',side:'#C9A800',front:'#E6C400'},
+  {top:'#FF6B6B',side:'#B33030',front:'#D94545'},
+  {top:'#4FC3F7',side:'#0277BD',front:'#29ABE2'},
+  {top:'#81C784',side:'#2E7D32',front:'#4CAF50'},
+  {top:'#FFB74D',side:'#BF360C',front:'#F57C00'},
+  {top:'#CE93D8',side:'#6A1B9A',front:'#AB47BC'},
+  {top:'#80DEEA',side:'#00695C',front:'#26C6DA'},
+  {top:'#F48FB1',side:'#880E4F',front:'#EC407A'},
+  {top:'#BCAAA4',side:'#4E342E',front:'#8D6E63'},
+  {top:'#DCE775',side:'#558B2F',front:'#AFB42B'},
+];
+
+const EMPTY={top:'#e8e4f8',side:'#b0a8e0',front:'#ccc8f0'};
+const PALLET_TOP='#8B7355';const PALLET_SIDE='#5C4A2A';const PALLET_FRONT='#6B5A3A';
+const SLAT_TOP='#A08050';const SLAT_SIDE='#6B4F28';const SLAT_FRONT='#7A5C35';
+
+['total','cpl','cols','rows','maxl'].forEach(id=>{
+  $(id).addEventListener('input',()=>{$('v-'+id).textContent=$(id).value;update();});
+});
+['pname','pnotes'].forEach(id=>$(id).addEventListener('input',update));
+
+function solveLayers(total,maxCpl,maxL){
+  if(total<=0)return[];
+  if(total<=maxCpl)return[{count:total,type:'partial'}];
+  const full=Math.floor(total/maxCpl),rem=total%maxCpl;
+  const needed=full+(rem?1:0);
+  if(needed<=maxL){
+    const arr=Array(full).fill(null).map(()=>({count:maxCpl,type:'full'}));
+    if(rem)arr.push({count:rem,type:'partial'});
+    return arr;
+  }
+  const base=Math.floor(total/maxL),extra=total%maxL;
+  return Array(maxL).fill(null).map((_,i)=>{const c=base+(i<extra?1:0);return{count:c,type:c===maxCpl?'full':'partial'};});
+}
+
+function stabilityLabel(layers,maxCpl){
+  if(!layers.length)return'—';
+  const top=layers[layers.length-1].count/maxCpl;
+  const spread=Math.max(...layers.map(l=>l.count))-Math.min(...layers.map(l=>l.count));
+  if(top>=0.85&&spread<=1)return'Excellent';
+  if(top>=0.6&&spread<=2)return'Good';
+  if(top>=0.4)return'Fair';
+  return'Poor';
+}
+
+let _layers=[],_maxCpl=28,_cols=7,_rows=4,_maxL=10;
+
+function update(){
+  const total=Math.max(1,+$('total').value||1);
+  _maxCpl=Math.max(1,+$('cpl').value||28);
+  _cols=Math.max(1,+$('cols').value||7);
+  _rows=Math.max(1,+$('rows').value||4);
+  _maxL=Math.max(1,+$('maxl').value||10);
+  _layers=solveLayers(total,_maxCpl,_maxL);
+
+  const topL=_layers[_layers.length-1];
+  const topFill=topL?Math.round(topL.count/_maxCpl*100):0;
+  const stab=stabilityLabel(_layers,_maxCpl);
+  const allEq=_layers.every(l=>l.count===_layers[0].count);
+
+  $('s-layers').textContent=_layers.length;
+  if(allEq&&_layers.length){$('s-cpl').textContent=_layers[0].count;$('s-cpl2').textContent='all equal';}
+  else{const mn=Math.min(..._layers.map(l=>l.count)),mx=Math.max(..._layers.map(l=>l.count));$('s-cpl').textContent=mn+'–'+mx;$('s-cpl2').textContent='per layer';}
+  $('s-fill').textContent=topFill;
+  $('s-stab').textContent=stab;
+
+  const warn=$('warn');
+  if(total>_maxCpl*_maxL){warn.style.display='block';warn.textContent='Cases exceed pallet capacity ('+_maxCpl+'×'+_maxL+'='+(_maxCpl*_maxL)+'). Consider a second pallet.';}
+  else warn.style.display='none';
+
+  const plan=$('layer-plan');plan.innerHTML='';
+  _layers.forEach((l,i)=>{
+    const pct=Math.round(l.count/_maxCpl*100);
+    const c=LAYER_COLORS[i%LAYER_COLORS.length];
+    const d=document.createElement('div');d.className='lrow';
+    d.innerHTML=`<div class="lbadge" style="background:${c.front}">${i+1}</div><div class="lbar-bg"><div class="lbar" style="width:${pct}%;background:${c.front}"></div></div><div class="lcnt">${l.count}</div>`;
+    plan.appendChild(d);
+  });
+
+  const allEq2=_layers.every(l=>l.count===_layers[0].count);
+  $('note').textContent=allEq2&&_layers.length>1?'All layers equal — ideal stability for double-stacking.':_layers.length===1?'Single layer. '+topFill+'% pallet surface covered.':'Balanced distribution. Top layer: '+topL.count+' cases ('+topFill+'% coverage).';
+
+  const leg=$('legend');leg.innerHTML='';
+  _layers.forEach((l,i)=>{
+    const c=LAYER_COLORS[i%LAYER_COLORS.length];
+    const d=document.createElement('div');d.className='leg';
+    d.innerHTML=`<div class="leg-dot" style="background:${c.top}"></div>Layer ${i+1} · ${l.count}cs`;
+    leg.appendChild(d);
+  });
+
+  drawPallet($('cv'),_layers,_maxCpl,_cols,_rows,false);
+}
+
+function drawPallet(canvas,layers,maxCpl,cols,rows,forPrint){
+  const ctx=canvas.getContext('2d');
+  const W=canvas.width,H=canvas.height;
+  ctx.clearRect(0,0,W,H);
+
+  const S=forPrint?1.18:1.0;
+  const CW=Math.floor((forPrint?46:40)/Math.max(cols,4)*S);
+  const CD=Math.floor((forPrint?38:33)/Math.max(rows,3)*S);
+  const CH=forPrint?22:19;
+  const PAL_H=forPrint?14:12;
+  const SLAT_H=forPrint?8:7;
+
+  const palW=cols*CW+4,palD=rows*CD+4;
+
+  const isoX=0.70,isoY=0.36;
+  function iso(x,y,z){
+    return{
+      x:x*isoX-y*isoX,
+      y:-z+x*isoY+y*isoY
+    };
+  }
+
+  const maxDisp=Math.min(layers.length,12);
+  const totalH=maxDisp*CH+PAL_H+SLAT_H+10;
+  const span_x=(palW+palD)*isoX;
+  const span_y=(palW+palD)*isoY+totalH;
+  const ox=W/2,oy=(H-span_y)/2+span_y-10;
+
+  function pt(x,y,z){const p=iso(x,y,z);return{x:ox+p.x,y:oy+p.y};}
+
+  function face(pts,color,stroke){
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x,pts[0].y);
+    for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i].x,pts[i].y);
+    ctx.closePath();
+    ctx.fillStyle=color;ctx.fill();
+    ctx.strokeStyle=stroke||'rgba(0,0,0,0.18)';ctx.lineWidth=0.8;ctx.stroke();
+  }
+
+  function box(x,y,z,w,d,h,tc,sc,fc){
+    face([pt(x,y,z+h),pt(x+w,y,z+h),pt(x+w,y+d,z+h),pt(x,y+d,z+h)],tc,'rgba(0,0,0,0.15)');
+    face([pt(x,y+d,z+h),pt(x+w,y+d,z+h),pt(x+w,y+d,z),pt(x,y+d,z)],sc,'rgba(0,0,0,0.2)');
+    face([pt(x+w,y,z+h),pt(x+w,y+d,z+h),pt(x+w,y+d,z),pt(x+w,y,z)],fc,'rgba(0,0,0,0.2)');
+  }
+
+  const px=0,py=0,pz=0;
+  box(px,py,pz,palW,palD,PAL_H,PALLET_TOP,PALLET_SIDE,PALLET_FRONT);
+  const slatW=Math.floor(palW*0.14);
+  const gaps=[0.1,0.42,0.74];
+  gaps.forEach(g=>{
+    const sx=px+Math.floor(palW*g);
+    box(sx,py,pz-SLAT_H,slatW,palD,SLAT_H,SLAT_TOP,SLAT_SIDE,SLAT_FRONT);
+  });
+
+  const baseZ=pz+PAL_H;
+  for(let li=0;li<maxDisp;li++){
+    const lay=layers[li];
+    const z=baseZ+li*CH;
+    const c=LAYER_COLORS[li%LAYER_COLORS.length];
+    let drawn=0;
+    for(let r=0;r<rows;r++){
+      for(let col=0;col<cols;col++){
+        const bx=px+2+col*CW,by=py+2+r*CD;
+        const filled=drawn<lay.count;
+        const tc=filled?c.top:EMPTY.top;
+        const sc=filled?c.side:EMPTY.side;
+        const fc=filled?c.front:EMPTY.front;
+        box(bx,by,z,CW-1,CD-1,CH-1,tc,sc,fc);
+        if(filled)drawn++;
+      }
+    }
+    const lp=pt(px-4,py+palD/2,z+CH*.55);
+    ctx.fillStyle='rgba(80,70,60,0.75)';
+    ctx.font=`500 ${forPrint?11:10}px sans-serif`;
+    ctx.textAlign='right';
+    ctx.fillText('L'+(li+1)+' · '+lay.count,lp.x-2,lp.y+3);
+  }
+
+  const dp=pt(palW/2,palD+10,pz);
+  ctx.fillStyle='rgba(100,90,80,0.7)';
+  ctx.font=`${forPrint?12:11}px sans-serif`;
+  ctx.textAlign='center';
+  ctx.fillText('40" × 48"  ·  '+cols+' × '+rows,dp.x,dp.y+12);
+}
+
+function doPrint(){
+  const name=$('pname').value.trim()||'Pallet Configuration';
+  const notes=$('pnotes').value.trim();
+  const total=+$('total').value;
+  const stab=stabilityLabel(_layers,_maxCpl);
+  const topL=_layers[_layers.length-1];
+  const topFill=topL?Math.round(topL.count/_maxCpl*100):0;
+  const allEq=_layers.every(l=>l.count===_layers[0].count);
+
+  $('pa-title').textContent=name;
+  $('pa-meta').textContent='Total: '+total+' cases  ·  '+_layers.length+' layer'+(_layers.length!==1?'s':'')+' · '+_cols+' × '+_rows+' grid';
+  $('pa-date').innerHTML=new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})+'<br>'+new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+
+  $('pa-stats').innerHTML=[
+    ['Layers used',_layers.length,''],
+    ['Cases / layer',allEq?_layers[0].count:(Math.min(..._layers.map(l=>l.count))+'–'+Math.max(..._layers.map(l=>l.count))),''],
+    ['Top coverage',topFill,'%'],
+    ['Stability',stab,'']
+  ].map(([l,v,u])=>`<div class="pa-stat"><div class="pa-stat-lbl">${l}</div><div class="pa-stat-val">${v}${u}</div></div>`).join('');
+
+  $('pa-layers').innerHTML=_layers.map((l,i)=>{
+    const c=LAYER_COLORS[i%LAYER_COLORS.length];
+    const pct=Math.round(l.count/_maxCpl*100);
+    return`<div class="pa-layer-row"><div style="width:18px;height:18px;border-radius:3px;background:${c.front};flex-shrink:0"></div><span style="flex:1">Layer ${i+1} — ${l.count} cases</span><span style="color:#888;font-size:12px">${pct}%</span></div>`;
+  }).join('');
+
+  if(notes){$('pa-notes').textContent=notes;$('pa-notes-wrap').style.display='block';}
+  else $('pa-notes-wrap').style.display='none';
+  $('pa-footer-r').textContent='Grid: '+_cols+' cols × '+_rows+' rows  ·  Max '+_maxL+' layers';
+
+  drawPallet($('cv-print'),_layers,_maxCpl,_cols,_rows,true);
+  window.print();
+}
+
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',update);
+update();
+</script>
